@@ -1,0 +1,16 @@
+{
+  "name": "node-permissions",
+  "version": "0.0.1",
+  "description": "Permission system for nodejs",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "keywords": [
+    "nodejs",
+    "permission",
+    "roles"
+  ],
+  "author": "Aaron W. Johnson",
+  "license": "MIT"
+}
