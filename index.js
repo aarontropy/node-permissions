@@ -2,13 +2,24 @@
  * NAME1        Undecorated Role/Permission
  * NAME2:       Partial Role/Permission
  * NAME3:DEC    Decorated Role/Permission
- * 
+ *
  * Decoration Inheritance
  *     1.  Partial Permissions assigned to Role inherit the decoration
  *         of the Role
- *     2.  Partial Permissions assigned to the User do not inherit 
+ *     2.  Partial Permissions assigned to the User do not inherit
  *         decorations
  *     3.  Partial Roles do no inherit decorations
+ *
+ * Matching rules:
+ *     When using .userHasRole() and .userHasPermission(), the following rules
+ *     apply:
+ *     1. KEY:DECOR and KEY:DECOR always match
+ *     2. KEY and KEY:DECOR never match
+ *     3. KEY and KEY:* always match
+ *     4. KEY:DECOR and KEY:* do not match if the user role or permission is
+ *        KEY:DECOR and the test role or permission is KEY:*
+ *     5. KEY:DECOR and KEY:* match if the user role or permission is KEY:* and
+ *        the test role or permission is KEY:DECOR
  */
 'use strict';
 
@@ -30,17 +41,16 @@ var unique = function(ary) {
 
 /**
  * Splits a decorated Role or Permission in to its parts
- * @param  {string} roleperm decorated or undecorated 
+ * @param  {string} roleperm decorated or undecorated
  * @return {array}              First element is the Role
- *                              Second element is an array of strings.  
- *                              Second element is empty array if roleperm 
+ *                              Second element is an array of strings.
+ *                              Second element is empty array if roleperm
  *                              is undecorated
  */
 var getParts = function(roleperm) {
     var a = roleperm.split(':');
     return [a.shift(), a];
-
-}
+};
 
 
 /**
@@ -71,17 +81,55 @@ var decoratePermissions = function(permissions, decorations) {
             p.push(c);
         }
         return p;
-        
+
     }, []);
 
     return decoratedPermissions;
 };
 
 
+var match = function(key, ary) {
+    var root = getParts(key)[0];
+
+    var isSame = function(el, ix, ar) {
+        return el === key || el === root + ':*';
+    }
+
+    return ary.some(isSame);
+};
+
+
 // ==== CLASS DEFINITION =======================================================
-function Permissions(roleSchemes) {
-    this._roleSchemes = roleSchemes;
+function Permissions() {
+    this._roles = {};
 }
+
+
+Permissions.prototype.roles = function(role, schema) {
+    // Passing just a role name will retrieve the role
+    if (!schema) {
+        return this._roles[role];
+    }
+    return this._roles[role] = schema;
+};
+
+
+/**
+ * Returns the roles object containing all roles
+ * @return {Object}    all registered rolls
+ */
+Permissions.prototype.allRoles = function() {
+    return this._roles;
+};
+
+/**
+ * clears the internal cache of roles
+ * @return nothing
+ */
+Permissions.prototype.clearRoles = function() {
+    this._roles = {};
+};
+
 
 /**
  * Returns a flattened list of roles
@@ -89,7 +137,7 @@ function Permissions(roleSchemes) {
  * @return {Array}                 List of roles
  */
 Permissions.prototype.collectRoles = function(role) {
-    var roles = this._roleSchemes[role].roles;
+    var roles = (this._roles[role]) ? this._roles[role].roles : [];
 };
 
 
@@ -104,14 +152,14 @@ Permissions.prototype.collectRoles = function(role) {
 Permissions.prototype.getRolePermissions = function(role, path) {
     var self = this;
 
-    if (!role) { return []; }
+    if (!role || !('String' === typeof role)) { return []; }
     if (!path) { path = []; };
 
     var roleScheme = this.getRoleScheme(role);
     if (!roleScheme) { return []; }
 
     // Keep a record of where we've been so not to get in an infinite loop
-    // Use the decorated role to distinguish between 
+    // Use the decorated role to distinguish between
     // SOMEROLE:USER1 and SOMEROLE:USER2
     path.push(role);
 
@@ -123,8 +171,7 @@ Permissions.prototype.getRolePermissions = function(role, path) {
         }
     }, decoratePermissions(roleScheme.permissions,getParts(role)[1]));
 
-    // TODO: unique permissions
-    return permissionsList;
+    return unique(permissionsList);
 }
 
 
@@ -136,14 +183,22 @@ Permissions.prototype.getRolePermissions = function(role, path) {
  */
 Permissions.prototype.getRoleScheme = function(role) {
     var name = getParts(role)[0];
-    return this._roleSchemes[name] || this._roleSchemes[name + ':'];
+    return this._roles[name] || this._roles[name + ':'];
 };
 
+Permissions.prototype.getUserRoles = function(user) {
+    var roles = user.roles;
+    roles = user.roles.reduce(function(p, userRole) {
+        var role = this.getRoleScheme(userRole);
+        return p.concat( (role) ? role.roles : []);
+    }, roles);
+    return unique(roles);
+};
 
 
 /**
  * Builds array of all permissions for user
- * @param  {Object} user User Object which has `roles` and 
+ * @param  {Object} user User Object which has `roles` and
  *                       `permissions` parameters
  * @return {Array}      Decorated Permissions
  */
@@ -151,7 +206,7 @@ Permissions.prototype.getUserPermissions = function(user) {
     var self = this;
     var permissions = user.permissions;
     if (permissions && !(permissions instanceof Array)) { permissions = [permissions]; }
-    
+
     var roles = user.roles;
     if (roles && !(roles instanceof Array)) { roles = [roles]; }
 
@@ -163,5 +218,14 @@ Permissions.prototype.getUserPermissions = function(user) {
 };
 
 
+Permissions.prototype.userHasRole = function(user, role) {
+    var roles = this.getUserRoles(user);
+    return match(role, user.roles);
+};
 
-exports = module.exports = Permissions;
+Permissions.prototype.userHasPermission = function(user, permission) {
+
+}
+
+
+var permissions = exports = module.exports = new Permissions;

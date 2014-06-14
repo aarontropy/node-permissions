@@ -1,7 +1,7 @@
 'use strict';
 
 
-var Permissions = require('../');
+var permissions = require('../');
 var assert = require('assert');
 
 assert.sameSet = function(ary1, ary2, message) {
@@ -100,7 +100,41 @@ var roleSchemes = {
 
 
 describe('Permissions', function() {
-    var permissions = new Permissions(roleSchemes);
+    before(function() {
+        permissions.roles('TEST1:', {
+            roles: [
+            ],
+            permissions: [
+                'PERM1-1:',
+                'PERM1-2'
+            ]
+        });
+        permissions.roles('TEST2:', {
+            roles: [
+            ],
+            permissions: [
+                'PERM2-1',
+                'PERM2-2'
+            ]
+        });
+        permissions.roles('SUPER', {
+            roles: [
+                'TEST1:*',
+                'TEST2'
+            ],
+            permissions: [
+                'DOALL'
+            ]
+        });
+        permissions.roles('CIRC1', {
+            roles: ['CIRC2'],
+            permissions: ['PERM1']
+        });
+        permissions.roles('CIRC2', {
+            roles: ['CIRC1'],
+            permissions: ['PERM2']
+        });
+    });
 
     // it('Correctly extracts arguments from roleperm', function() {
     //     var args = permissions.getDecorations('ROLE:ARG1:ARG2');
@@ -112,11 +146,16 @@ describe('Permissions', function() {
     //     assert.equal(args.length, 0);
     // });
 
+    it('retrieves a role from the cache', function() {
+        var role = permissions.roles('CIRC2');
+        assert.deepEqual(['CIRC1'], role.roles);
+    })
+
     it('returns the correct role scheme', function() {
         assert.deepEqual(permissions.getRoleScheme('TEST1'), roleSchemes['TEST1:']);
         assert.deepEqual(permissions.getRoleScheme('TEST1:*'), roleSchemes['TEST1:']);
     });
-    
+
     it('decorates permissions based on the role', function() {
         var perms;
 
@@ -145,11 +184,15 @@ describe('Permissions', function() {
             assert.sameSet(['PERM1', 'PERM2'], perms);
             done();
         }, 500);
-        
+
         perms = permissions.getRolePermissions('CIRC1');
     });
 
-    
+    it('gets all the roles for a user', function() {
+        assert.ok(false);
+    });
+
+
     it('gets all the permissions for a user', function() {
         var user = {
             roles: ['TEST2', 'CIRC1'],
@@ -160,5 +203,39 @@ describe('Permissions', function() {
         assert.sameSet(['PERM2-1', 'PERM2-2', 'PERM1', 'PERM2', 'WEIRD_ROLE'], perms);
     });
 
+});
 
-})
+
+describe('Matching Rules', function() {
+    before(function() {
+
+    });
+
+    after(function() {
+
+    });
+
+    it('applies KEY:DECOR and KEY:DECOR always match', function() {
+        assert.ok(false);
+
+    });
+
+    it('applies KEY and KEY:DECOR never match', function() {
+        assert.ok(false);
+
+    });
+
+    it('applies KEY and KEY:* always match', function() {
+        assert.ok(false);
+
+    });
+
+    it('applies KEY:DECOR and KEY:* do not match if the user role or permission is KEY:DECOR and the test role or permission is KEY:*', function() {
+        assert.ok(false);
+
+    });
+
+    it('applies KEY:DECOR and KEY:* match if the user role or permission is KEY:* and the test role or permission is KEY:DECOR', function() {
+        assert.ok(false);
+    });
+});
