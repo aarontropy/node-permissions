@@ -102,10 +102,16 @@ var decorateList = function(items, decoration) {
 
 
 var match = function(key, ary) {
-    var root = getParts(key)[0];
+    var rd = getParts(key);
+
+    // when matching, an undecorated role or permission is the same as 
+    // its counterpart decorated with `*`
+    // if (rd[1] === '') { rd[1] = '*'; }
 
     var isSame = function(el, ix, ar) {
-        return el === key || el === root + ':*';
+        var urd = getParts(el);
+        if (urd[1] === '') { urd[1] = '*'; }
+        return el === key || (urd[0] === rd[0] && (urd[1] === '*' || rd[1] === '*') );
     }
 
     return ary.some(isSame);
@@ -171,6 +177,7 @@ Permissions.prototype.collectRoles = function(role) {
  *                          an infinite loop
  * @return {Array}      Array of decorated permissions
  */
+// ELIMINATE
 Permissions.prototype.getRolePermissions = function(fullRole) {
     var self = this;
 
@@ -206,6 +213,7 @@ Permissions.prototype.getNestedRoles = function(fullRole, path) {
 
     // prevent infinite loops
     if (path.indexOf(fullRole) !== -1) { return []; }
+    path.push(fullRole);
 
     var role_decoration = getParts(fullRole);
     var role = self._roles[role_decoration[0]];
@@ -227,6 +235,7 @@ Permissions.prototype.getNestedRoles = function(fullRole, path) {
     return roles.reduce(function(p, current) {
         return p.concat(self.getNestedRoles(current, path));
     },[fullRole]);
+
 };
 
 Permissions.prototype.getUserRoles = function(user) {
@@ -262,14 +271,14 @@ Permissions.prototype.getUserPermissions = function(user) {
 
 
 // ==== MATCHING FUNCTIONS =====================================================
-Permissions.prototype.userHasRole = function(user, role) {
+Permissions.prototype.userHasRole = function(user, findRole) {
     var roles = this.getUserRoles(user);
-    return match(role, roles);
+    return match(findRole, roles);
 };
 
-Permissions.prototype.userHasPermission = function(user, permission) {
+Permissions.prototype.userHasPermission = function(user, findPermission) {
     var permissions = this.getUserPermissions(user);
-    return match(permission, permissions);
+    return match(findPermission, permissions);
 };
 
 

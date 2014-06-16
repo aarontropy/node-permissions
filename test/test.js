@@ -97,7 +97,6 @@ describe('Retrieving user roles and permissions', function() {
         // Permissions.roles('DEC1:', {roles: [], permissions: ['PERM1', 'PERM2:']);
         // Permissions.roles('DEC2', {roles: ['DEC1:'], permissions: []});
         // Permissions.roles('DEC3', {roles: ['DEC1', 'DEC2'], permissions: []});
-        console.log(Permissions.allRoles().DEC2);
         var user1 = { roles: ['DEC1:OK']};
         var user2 = { roles: ['DEC2:OK']};
         var user3 = { roles: ['DEC3:OK']};
@@ -107,7 +106,6 @@ describe('Retrieving user roles and permissions', function() {
         assert.sameSet(['DEC1:OK'], roles1);
         assert.sameSet(['DEC2:OK', 'DEC1:OK'], roles2);
         assert.sameSet(['DEC3:OK', 'DEC2'], roles3);
-        console.log(Permissions.allRoles().DEC2);
     });
 
     it('ignores undecorated roles when decoration is required', function() {
@@ -160,50 +158,57 @@ describe('Retrieving user roles and permissions', function() {
     it('avoids getting in an infinite loop of roles', function(done) {
         // Permissions.roles('CIRC1', {roles: ['CIRC2'], permissions: ['PERM1']});
         // Permissions.roles('CIRC2', {roles: ['CIRC1'], permissions: ['PERM1']});
-        var perms;
+        var roles;
 
         // Assume an infinite loop if it takes longer than 500ms
         setTimeout(function() {
-            assert.equal(1, perms.length)
+            assert.equal(2, roles.length)
             done();
         }, 500);
 
-        perms = permissions.getRolePermissions('CIRC1');
+        roles = Permissions.getNestedRoles('CIRC1');
     });
 
 });
 
 
 describe('Matching Rules', function() {
-    before(function() {
+    var user;
 
+    before(function() {
+        Permissions.clearRoles();
+        Permissions.roles('KEY1', {});
+        Permissions.roles('KEY2', {});
+        Permissions.roles('KEY3', {});
+        user = {
+            roles: [
+                'KEY1:DECOR',
+                'KEY2',
+                'KEY3:*'
+            ]
+        }
     });
 
     after(function() {
-
+        Permissions.clearRoles();
     });
 
-    it('applies KEY:DECOR and KEY:DECOR always match', function() {
-        assert.ok(false);
-
+    it('simple role matching KEY:DECOR and KEY:DECOR', function() {
+        assert.ok(Permissions.userHasRole(user, 'KEY1:DECOR'));
     });
 
-    it('applies KEY and KEY:DECOR never match', function() {
-        assert.ok(false);
-
+    it('applies proper scoping when matching decorated and undecorated roles', function() {
+        assert.equal(false, Permissions.userHasRole(user, 'KEY1'));
+        assert.equal(true, Permissions.userHasRole(user, 'KEY2:DECOR'));
     });
 
     it('applies KEY and KEY:* always match', function() {
-        assert.ok(false);
-
+        assert.equal(true, Permissions.userHasRole(user, 'KEY1:*', 'Failed mating KEY1:*'));
+        assert.equal(true, Permissions.userHasRole(user, 'KEY2', 'Failed mating KEY2'));
+        assert.equal(true, Permissions.userHasRole(user, 'KEY3', 'Failed mating KEY3'));
+        assert.equal(true, Permissions.userHasRole(user, 'KEY3:DECOR', 'Failed mating KEY3:DECOR'));
     });
 
-    it('applies KEY:DECOR and KEY:* do not match if the user role or permission is KEY:DECOR and the test role or permission is KEY:*', function() {
-        assert.ok(false);
 
-    });
-
-    it('applies KEY:DECOR and KEY:* match if the user role or permission is KEY:* and the test role or permission is KEY:DECOR', function() {
-        assert.ok(false);
-    });
+    
 });
