@@ -1,7 +1,7 @@
 'use strict';
 
 
-var permissions = require('../');
+var Permissions = require('../');
 var assert = require('assert');
 
 assert.sameSet = function(ary1, ary2, message) {
@@ -27,180 +27,148 @@ assert.sameSet = function(ary1, ary2, message) {
 
 }
 
-var roleSchemes = {
-    'TEST1:': {
-        roles: [
-        ],
-        permissions: [
-            'PERM1-1:',
-            'PERM1-2'
-        ]
-    },
-    'TEST2': {
-        roles: [
-        ],
-        permissions: [
-            'PERM2-1',
-            'PERM2-2'
-        ]
-    },
-    'SUPER': {
-        roles: [
-            'TEST1:*',
-            'TEST2'
-        ],
-        permissions: [
-            'DOALL'
-        ]
-    },
-    'CIRC1': {
-        roles: ['CIRC2'],
-        permissions: ['PERM1']
-    },
-    'CIRC2': {
-        roles: ['CIRC1'],
-        permissions: ['PERM2']
-    },
-    'SYSADMIN': {
-        roles: [
-            'ADMIN',
-            'USER:*',
-            'ORGADMIN:*'
-        ],
-        permissions: [
-            'ASSIGN_ROLE'
-        ]
-    },
-
-    'ADMIN': {
-        roles: [
-        ],
-        permissions: [
-            'ADD_USER'
-        ]
-    },
-
-    'USER:': {
-        roles: [
-        ],
-        permissions: [
-            'VIEW_USER_PROFILE:',
-            'EDIT_USER_PROFILE:'
-        ]
-    },
-
-    'ORGADMIN:': {
-        roles: [
-        ],
-        permissions: [
-            'EDIT_ORG:'
-        ]
-    }
-};
-
 
 describe('Permissions', function() {
-    before(function() {
-        permissions.roles('TEST1:', {
-            roles: [
-            ],
-            permissions: [
-                'PERM1-1:',
-                'PERM1-2'
-            ]
-        });
-        permissions.roles('TEST2:', {
-            roles: [
-            ],
-            permissions: [
-                'PERM2-1',
-                'PERM2-2'
-            ]
-        });
-        permissions.roles('SUPER', {
-            roles: [
-                'TEST1:*',
-                'TEST2'
-            ],
-            permissions: [
-                'DOALL'
-            ]
-        });
-        permissions.roles('CIRC1', {
-            roles: ['CIRC2'],
-            permissions: ['PERM1']
-        });
-        permissions.roles('CIRC2', {
-            roles: ['CIRC1'],
-            permissions: ['PERM2']
-        });
-    });
-
-    // it('Correctly extracts arguments from roleperm', function() {
-    //     var args = permissions.getDecorations('ROLE:ARG1:ARG2');
-    //     assert.deepEqual(args, ['ARG1', 'ARG2']);
-    // });
-
-    // it('returns no arguments if none are passed', function() {
-    //     var args = permissions.getDecorations('ROLE');
-    //     assert.equal(args.length, 0);
-    // });
-
-    it('retrieves a role from the cache', function() {
-        var role = permissions.roles('CIRC2');
-        assert.deepEqual(['CIRC1'], role.roles);
+    
+    after(function() {
+        Permissions.clearRoles();
     })
 
-    it('returns the correct role scheme', function() {
-        assert.deepEqual(permissions.getRoleScheme('TEST1'), roleSchemes['TEST1:']);
-        assert.deepEqual(permissions.getRoleScheme('TEST1:*'), roleSchemes['TEST1:']);
+    it('caches a role', function() {
+        Permissions.roles('TEST1', {roles: [], permissions:['PERM1']});
+        assert.equal('PERM1', Permissions.roles('TEST1').permissions[0]);
     });
 
-    it('decorates permissions based on the role', function() {
-        var perms;
+    it('caches a role that requires decoration', function() {
+        Permissions.clearRoles();
+        Permissions.roles('DEC1:', {roles: [], permissions: []});
+        var roles = Permissions.allRoles();
+        assert.ok(roles.hasOwnProperty('DEC1'));
+        assert.ok(roles.DEC1.requireDecoration);
+    })
 
-        perms = permissions.getRolePermissions('TEST1:test');
-        assert.deepEqual(['PERM1-1:test', 'PERM1-2'], perms);
-
-        perms = permissions.getRolePermissions('TEST2');
-        assert.sameSet(['PERM2-2','PERM2-1'], perms);
-        // assert.ok(perms.sameSet(['PERM2-2','PERM2-1']), perms + " sameSet " + ['PERM2-2','PERM2-1'])
-    });
-
-    it('gets and decorates permissions from nested roles', function() {
-        var perms;
-
-        perms = permissions.getRolePermissions('SUPER');
-        assert.sameSet(['PERM1-1:*', 'PERM1-2', 'PERM2-1','PERM2-2', 'DOALL'], perms);
+    it('persists when called from other modules', function() {
+        var other_mod = require('./other_module');
+        other_mod();
+        assert.equal('OTHER_PERM', Permissions.roles('OTHER_ROLE').permissions[0]);
     });
 
 
+ 
+
+});
+
+describe('Retrieving user roles and permissions', function() {
+    before(function() {
+        Permissions.roles('ROLE1', {roles: [], permissions: ['PERM1']});
+        Permissions.roles('ROLE2', {roles: [], permissions: ['PERM2']});
+        Permissions.roles('NEST1', {roles: ['NEST2'], permissions: ['PERM2']});
+        Permissions.roles('NEST2', {roles: [], permissions: ['PERM2']});
+        Permissions.roles('DEC1:', {roles: [], permissions: ['PERM1', 'PERM2:']});
+        Permissions.roles('DEC2', {roles: ['DEC1:'], permissions: []});
+        Permissions.roles('DEC3', {roles: ['DEC1', 'DEC2'], permissions: []});
+        Permissions.roles('DEC4:', {roles: ['DEC1:SNAIL', 'DEC1:'], permissions: []});
+        Permissions.roles('DEC5', {roles: ['DEC1']});
+        Permissions.roles('CIRC1', {roles: ['CIRC2'], permissions: ['PERM1']});
+        Permissions.roles('CIRC2', {roles: ['CIRC1'], permissions: ['PERM1']});
+
+    });
+
+
+    it('retrieves a simple list of user roles', function() {
+        // Permissions.roles('ROLE1', {roles: [], permissions: ['PERM1']);
+        // Permissions.roles('ROLE2', {roles: [], permissions: ['PERM2']);
+        var user = {
+            roles: ['ROLE1', 'ROLE2']
+        };
+        var roles = Permissions.getUserRoles(user);
+        assert.sameSet(['ROLE1', 'ROLE2'], roles);
+    });
+
+    it('retrieves a list of nested user roles', function() {
+        // Permissions.roles('NEST1', {roles: ['NEST2'], permissions: ['PERM2']);
+        // Permissions.roles('NEST2', {roles: [], permissions: ['PERM2']);
+        var user = { roles: ['NEST1'] };
+        var roles = Permissions.getUserRoles(user);
+        assert.sameSet(['NEST1', 'NEST2'], roles);
+    });
+
+    it('retrieves a nested list of user roles, properly decorated', function() {
+        // Permissions.roles('DEC1:', {roles: [], permissions: ['PERM1', 'PERM2:']);
+        // Permissions.roles('DEC2', {roles: ['DEC1:'], permissions: []});
+        // Permissions.roles('DEC3', {roles: ['DEC1', 'DEC2'], permissions: []});
+        console.log(Permissions.allRoles().DEC2);
+        var user1 = { roles: ['DEC1:OK']};
+        var user2 = { roles: ['DEC2:OK']};
+        var user3 = { roles: ['DEC3:OK']};
+        var roles1 = Permissions.getUserRoles(user1);
+        var roles2 = Permissions.getUserRoles(user2);
+        var roles3 = Permissions.getUserRoles(user3);
+        assert.sameSet(['DEC1:OK'], roles1);
+        assert.sameSet(['DEC2:OK', 'DEC1:OK'], roles2);
+        assert.sameSet(['DEC3:OK', 'DEC2'], roles3);
+        console.log(Permissions.allRoles().DEC2);
+    });
+
+    it('ignores undecorated roles when decoration is required', function() {
+        // Permissions.roles('DEC1:', {roles: [], permissions: ['PERM1', 'PERM2:']);
+        // Permissions.roles('DEC2', {roles: ['DEC1:'], permissions: []});
+        // Permissions.roles('DEC3', {roles: ['DEC1', 'DEC2'], permissions: []});
+        var user1 = { roles: ['DEC1']};
+        var user2 = { roles: ['DEC2']};
+        var user3 = { roles: ['DEC3']};
+        var roles1 = Permissions.getUserRoles(user1);
+        var roles2 = Permissions.getUserRoles(user2);
+        var roles3 = Permissions.getUserRoles(user3);
+        assert.equal(roles1.length, 0);
+        assert.sameSet(['DEC2'], roles2);
+        assert.sameSet(['DEC3', 'DEC2'], roles3);
+    })
+
+    it('retrieves a simple list of user permissions', function() {
+        // Permissions.roles('ROLE1', {roles: [], permissions: ['PERM1']);
+        var user = { roles: ['ROLE1'], permissions: ['CUSTOM1']};
+        var permissions = Permissions.getUserPermissions(user);
+        assert.sameSet(['PERM1', 'CUSTOM1'], permissions);
+    });
+
+    it('decorates permissions requiring decoration while leaving others undecorated', function() {
+        // Permissions.roles('DEC1:', {roles: [], permissions: ['PERM1', 'PERM2:']);
+        var user = {roles: ['DEC1:OK'], permissions: []};
+        var permissions = Permissions.getUserPermissions(user);
+        assert.sameSet(['PERM1', 'PERM2:OK'], permissions)
+    });
+
+    it('cascades decorations through nested roles to permissions', function() {
+        // Permissions.roles('DEC1:', {roles: [], permissions: ['PERM1', 'PERM2:']);
+        // Permissions.roles('DEC4:', {roles: ['DEC1:SNAIL', 'DEC1:'], permissions: [])
+        var user = {roles: ['DEC4:OK']};
+        var permissions = Permissions.getUserPermissions(user);
+        assert.sameSet(['PERM1', 'PERM2:SNAIL', 'PERM2:OK'], permissions);
+    });
+
+    // it('cascades `*` when undecorated', function() {
+    //     // Permissions.roles('DEC1:', {roles: [], permissions: ['PERM1', 'PERM2:']);
+    //     // Permissions.roles('DEC5', {roles: ['DEC1']})
+    //     var user = {roles: ['DEC5']};
+    //     var roles = Permissions.getUserRoles(user);
+    //     var permissions = Permissions.getUserPermissions(user);
+    //     assert.sameSet(['DEC5', 'DEC1:*'], roles);
+    //     assert.sameSet(['PERM1', 'PERM2:*'], permissions);
+    // });
 
     it('avoids getting in an infinite loop of roles', function(done) {
+        // Permissions.roles('CIRC1', {roles: ['CIRC2'], permissions: ['PERM1']});
+        // Permissions.roles('CIRC2', {roles: ['CIRC1'], permissions: ['PERM1']});
         var perms;
 
         // Assume an infinite loop if it takes longer than 500ms
         setTimeout(function() {
-            assert.sameSet(['PERM1', 'PERM2'], perms);
+            assert.equal(1, perms.length)
             done();
         }, 500);
 
         perms = permissions.getRolePermissions('CIRC1');
-    });
-
-    it('gets all the roles for a user', function() {
-        assert.ok(false);
-    });
-
-
-    it('gets all the permissions for a user', function() {
-        var user = {
-            roles: ['TEST2', 'CIRC1'],
-            permissions: ['WEIRD_ROLE']
-        };
-
-        var perms = permissions.getUserPermissions(user);
-        assert.sameSet(['PERM2-1', 'PERM2-2', 'PERM1', 'PERM2', 'WEIRD_ROLE'], perms);
     });
 
 });
