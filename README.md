@@ -42,6 +42,9 @@ Matching involves the functions `userHasRole` and `userHasPermission`
 Matching rules:
 When using .userHasRole() and .userHasPermission(), the following rules apply:
 1. KEY:DECOR and KEY:DECOR always match
-2. KEY and KEY:DECOR never match
-3. KEY and KEY:* always match
-4. KEY:DECOR and KEY:* always match
+2. KEY:DECOR and KEY:* always match
+3. Searching for KEY will match KEY and KEY:*
+4. Searching for KEY:DECOR will match KEY and KEY:*
+5. Searching for KEY:* will match KEY and KEY:<anything>
+6. Searching for KEY will NOT match KEY:DECOR
+7. A user with role/permission KEY will match any decorated counterpart

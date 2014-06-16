@@ -193,20 +193,36 @@ describe('Matching Rules', function() {
         Permissions.clearRoles();
     });
 
-    it('simple role matching KEY:DECOR and KEY:DECOR', function() {
+    it('KEY:DECOR and KEY:DECOR always match', function() {
         assert.ok(Permissions.userHasRole(user, 'KEY1:DECOR'));
     });
 
-    it('applies proper scoping when matching decorated and undecorated roles', function() {
-        assert.equal(false, Permissions.userHasRole(user, 'KEY1'));
-        assert.equal(true, Permissions.userHasRole(user, 'KEY2:DECOR'));
+    it('KEY:DECOR and KEY:* always match', function() {
+        assert.equal(true, Permissions.userHasRole(user, 'KEY1:*', 'Failed mating KEY1:*'));
+        assert.equal(true, Permissions.userHasRole(user, 'KEY3:DECOR', 'Failed mating KEY3:DECOR'));
     });
 
-    it('applies KEY and KEY:* always match', function() {
-        assert.equal(true, Permissions.userHasRole(user, 'KEY1:*', 'Failed mating KEY1:*'));
+    it('Searching for KEY will match KEY and KEY:*', function() {
         assert.equal(true, Permissions.userHasRole(user, 'KEY2', 'Failed mating KEY2'));
         assert.equal(true, Permissions.userHasRole(user, 'KEY3', 'Failed mating KEY3'));
-        assert.equal(true, Permissions.userHasRole(user, 'KEY3:DECOR', 'Failed mating KEY3:DECOR'));
+    });
+
+    it('Searching for KEY:DECOR will match KEY and KEY:*', function() {
+        assert.equal(true, Permissions.userHasRole(user, 'KEY2:DECOR'));
+        // see rule 2 for second half of this rule
+    });
+
+    it('Searching for KEY:* will match KEY and KEY:<anything>', function() {
+        assert.equal(true, Permissions.userHasRole(user, 'KEY2:*'));
+        assert.equal(true, Permissions.userHasRole(user, 'KEY1:*'));
+    });
+
+    it('Searching for KEY will NOT match KEY:DECOR', function() {
+        assert.equal(false, Permissions.userHasRole(user, 'KEY1'));
+    });
+
+    it('A user with role/permission KEY will match any decorated counterpart', function() {
+        assert.equal(true, Permissions.userHasRole(user, 'KEY2:DECOR'));
     });
 
 

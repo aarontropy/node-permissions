@@ -101,12 +101,17 @@ var decorateList = function(items, decoration) {
 };
 
 
+/**
+ * Applies decoration matching rules to a list of strings
+ * @param  {string} key Role or Permission to match
+ * @param  {Array} ary Array of strings
+ * @return {Bool}     true if match found, false otherwise
+ */
 var match = function(key, ary) {
     var rd = getParts(key);
 
     // when matching, an undecorated role or permission is the same as 
     // its counterpart decorated with `*`
-    // if (rd[1] === '') { rd[1] = '*'; }
 
     var isSame = function(el, ix, ar) {
         var urd = getParts(el);
