@@ -193,6 +193,10 @@ describe('Matching Rules', function() {
         Permissions.clearRoles();
     });
 
+    it('checks for a valid role', function() {
+        assert.equal(false, Permissions.isValidRole('IMNOTAROLE'));
+    })
+
     it('KEY:DECOR and KEY:DECOR always match', function() {
         assert.ok(Permissions.userHasRole(user, 'KEY1:DECOR'));
     });

@@ -276,6 +276,10 @@ Permissions.prototype.getUserPermissions = function(user) {
 
 
 // ==== MATCHING FUNCTIONS =====================================================
+Permissions.prototype.isValidRole = function(role) {
+    return this._roles.hasOwnProperty(getParts(role)[0]);
+};
+
 Permissions.prototype.userHasRole = function(user, findRole) {
     var roles = this.getUserRoles(user);
     return match(findRole, roles);
